@@ -1,0 +1,20 @@
+{
+  "name": "instagram-engage-app",
+  "version": "1.0.0",
+  "description": "Instagram engagement automation app",
+  "main": "backend/server.js",
+  "scripts": {
+    "start": "node backend/server.js"
+  },
+  "dependencies": {
+    "body-parser": "^1.20.2",
+    "cors": "^2.8.5",
+    "express": "^4.18.2",
+    "puppeteer": "^20.8.1"
+  },
+  "engines": {
+    "node": ">=14"
+  },
+  "author": "",
+  "license": "ISC"
+}
