@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Instagram Engagement Automation</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 font-inter min-h-screen flex flex-col items-center p-4">
+  <header class="w-full max-w-4xl mb-8">
+    <h1 class="text-3xl font-bold text-center text-gray-800">Instagram Engagement Automation</h1>
+  </header>
+
+  <main class="w-full max-w-4xl bg-white rounded-lg shadow p-6">
+    <section id="login-section" class="mb-6">
+      <h2 class="text-xl font-semibold mb-4">Instagram Login</h2>
+      <form id="login-form" class="space-y-4">
+        <div>
+          <label for="username" class="block text-gray-700 font-medium mb-1">Username</label>
+          <input type="text" id="username" name="username" required class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+        </div>
+        <div>
+          <label for="password" class="block text-gray-700 font-medium mb-1">Password</label>
+          <input type="password" id="password" name="password" required class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+        </div>
+        <button type="submit" class="w-full bg-blue-600 text-white font-semibold py-2 rounded hover:bg-blue-700 transition">Login</button>
+      </form>
+      <p id="login-message" class="mt-2 text-sm text-red-600"></p>
+    </section>
+
+    <section id="dashboard-section" class="hidden">
+      <h2 class="text-xl font-semibold mb-4">Dashboard</h2>
+      <div class="flex space-x-4 mb-4">
+        <button id="start-btn" class="flex-1 bg-green-600 text-white py-2 rounded hover:bg-green-700 transition"><i class="fas fa-play mr-2"></i>Start Engagement</button>
+        <button id="stop-btn" class="flex-1 bg-red-600 text-white py-2 rounded hover:bg-red-700 transition"><i class="fas fa-stop mr-2"></i>Stop Engagement</button>
+      </div>
+      <div class="mb-4">
+        <h3 class="font-semibold mb-2">Status</h3>
+        <p id="status-text" class="text-gray-700">Not running</p>
+      </div>
+      <div>
+        <h3 class="font-semibold mb-2">Logs</h3>
+        <div id="logs" class="h-48 overflow-y-auto bg-gray-50 border border-gray-300 rounded p-2 text-sm text-gray-600"></div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const loginForm = document.getElementById('login-form');
+    const loginMessage = document.getElementById('login-message');
+    const loginSection = document.getElementById('login-section');
+    const dashboardSection = document.getElementById('dashboard-section');
+    const startBtn = document.getElementById('start-btn');
+    const stopBtn = document.getElementById('stop-btn');
+    const statusText = document.getElementById('status-text');
+    const logsDiv = document.getElementById('logs');
+
+    let isEngaging = false;
+    let pollInterval;
+
+    loginForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      loginMessage.textContent = '';
+      const username = loginForm.username.value.trim();
+      const password = loginForm.password.value.trim();
+
+      startBtn.disabled = true;
+      stopBtn.disabled = true;
+
+      try {
+        const res = await fetch('http://localhost:3000/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password }),
+        });
+        const data = await res.json();
+        if (res.ok) {
+          loginSection.classList.add('hidden');
+          dashboardSection.classList.remove('hidden');
+          appendLog('Login successful');
+          startStatusPolling();
+          startBtn.disabled = false;
+          stopBtn.disabled = false;
+        } else {
+          loginMessage.textContent = data.error || 'Login failed';
+          startBtn.disabled = false;
+        }
+      } catch (err) {
+        loginMessage.textContent = 'Error connecting to server';
+        startBtn.disabled = false;
+      }
+    });
+
+    startBtn.addEventListener('click', async () => {
+      startBtn.disabled = true;
+      stopBtn.disabled = true;
+      try {
+        const res = await fetch('http://localhost:3000/start', { method: 'POST' });
+        const data = await res.json();
+        if (res.ok) {
+          isEngaging = true;
+          appendLog('Engagement started');
+          updateStatus('Running');
+        } else {
+          appendLog('Error: ' + (data.error || 'Failed to start'));
+        }
+      } catch (err) {
+        appendLog('Error connecting to server');
+      } finally {
+        startBtn.disabled = false;
+        stopBtn.disabled = false;
+      }
+    });
+
+    stopBtn.addEventListener('click', async () => {
+      startBtn.disabled = true;
+      stopBtn.disabled = true;
+      try {
+        const res = await fetch('http://localhost:3000/stop', { method: 'POST' });
+        const data = await res.json();
+        if (res.ok) {
+          isEngaging = false;
+          appendLog('Engagement stopped');
+          updateStatus('Stopped');
+        } else {
+          appendLog('Error: ' + (data.error || 'Failed to stop'));
+        }
+      } catch (err) {
+        appendLog('Error connecting to server');
+      } finally {
+        startBtn.disabled = false;
+        stopBtn.disabled = false;
+      }
+    });
+
+    function appendLog(message) {
+      const time = new Date().toLocaleTimeString();
+      logsDiv.textContent += `[${time}] ${message}\n`;
+      logsDiv.scrollTop = logsDiv.scrollHeight;
+    }
+
+    async function fetchStatus() {
+      try {
+        const res = await fetch('http://localhost:3000/status');
+        const data = await res.json();
+        if (res.ok) {
+          updateStatus(data.isEngaging ? 'Running' : 'Stopped');
+        } else {
+          updateStatus('Error');
+        }
+      } catch {
+        updateStatus('Error');
+      }
+    }
+
+    function updateStatus(text) {
+      statusText.textContent = text;
+    }
+
+    function startStatusPolling() {
+      pollInterval = setInterval(fetchStatus, 5000);
+    }
+  </script>
+</body>
+</html>
