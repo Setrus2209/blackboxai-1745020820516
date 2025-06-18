@@ -17,6 +17,7 @@ let browser;
 let page;
 let isEngaging = false;
 let followedUsers = new Map(); // username -> follow timestamp
+let loggedInUsername; // store the username used to log in
 
 // Helper function to delay
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
@@ -65,6 +66,7 @@ app.post('/login', async (req, res) => {
       return res.status(401).json({ error: 'Login failed. Check credentials.' });
     }
 
+    loggedInUsername = username;
     res.json({ message: 'Login successful' });
   } catch (error) {
     if (browser) await browser.close();
@@ -115,13 +117,13 @@ async function checkFollowsBack(username) {
     await followersLink.click();
     await page.waitForSelector('div[role="dialog"]', { timeout: 5000 });
     // Check if logged in user is in followers list
-    const followsBack = await page.evaluate((username) => {
+    const followsBack = await page.evaluate((currentUser) => {
       const followers = Array.from(document.querySelectorAll('div[role="dialog"] ul li'));
       return followers.some(follower => {
         const userLink = follower.querySelector('a');
-        return userLink && userLink.textContent === username;
+        return userLink && userLink.textContent === currentUser;
       });
-    }, username);
+    }, loggedInUsername);
     // Close dialog
     const closeButton = await page.$('div[role="dialog"] button.wpO6b');
     if (closeButton) await closeButton.click();
